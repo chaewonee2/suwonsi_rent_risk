@@ -8,7 +8,7 @@ from streamlit_folium import st_folium
 # --- 데이터 불러오기 ---
 @st.cache_data
 def load_data():
-    df = pd.read_csv("dataset_15.csv")
+    df = pd.read_csv("dataset_test.csv")
     df["전세가율"] = pd.to_numeric(df["전세가율"], errors="coerce")
     df["건축년도"] = pd.to_numeric(df["건축년도"], errors="coerce")
     df = df.dropna(subset=["위도", "경도"])  
@@ -36,3 +36,4 @@ for _, row in df.iterrows():
 
 # --- Streamlit에 지도 표시 ---
 st_data = st_folium(m, width=800, height=600)
+
