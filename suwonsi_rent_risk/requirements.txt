@@ -1,5 +1,6 @@
 streamlit
-openai
 pandas
 folium
 streamlit-folium
+plotly
+openai
