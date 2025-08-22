@@ -12,21 +12,27 @@ houses = pd.read_csv("fraud_house_location.csv")
 population = pd.read_csv("population_by_dong_2021_2024.csv")
 safety = pd.read_csv("safety_grade_2021_2024.csv")
 
-# 🔹 population 데이터 전처리 (wide → long)
+# --- population 데이터 전처리 (wide → long 변환) ---
 population = population.melt(
     id_vars=["구", "동"], 
     var_name="year", 
     value_name="population"
 )
+
+# year 컬럼을 숫자로 변환 (문자는 NaN → 제거)
+population["year"] = pd.to_numeric(population["year"], errors="coerce")
+population = population.dropna(subset=["year"])
 population["year"] = population["year"].astype(int)
 
-# 🔹 safety 데이터도 혹시 wide라면 같은 방식 처리
+# --- safety 데이터도 wide → long 변환 필요 시 처리 ---
 if "year" not in safety.columns:
     safety = safety.melt(
         id_vars=["구", "동"], 
         var_name="year", 
         value_name="safety_score"
     )
+    safety["year"] = pd.to_numeric(safety["year"], errors="coerce")
+    safety = safety.dropna(subset=["year"])
     safety["year"] = safety["year"].astype(int)
 
 # --- 사이드바 ---
@@ -45,6 +51,7 @@ col1, col2, col3 = st.columns([1, 2, 1])
 with col1:
     st.subheader("📊 주요 지표")
     st.metric("총 매물 수", len(houses))
+
     if "risk_score" in houses.columns:
         st.metric("평균 위험도", f"{houses['risk_score'].mean():.2f}")
         st.metric("고위험 매물 수", len(houses[houses["risk_score"] > 0.8]))
@@ -61,6 +68,7 @@ with col1:
 with col2:
     st.subheader("🗺️ 위험 지도")
     m = folium.Map(location=[37.2636, 127.0286], zoom_start=12)
+
     if {"lat", "lon"}.issubset(houses.columns):
         for _, row in houses.iterrows():
             folium.CircleMarker(
@@ -72,6 +80,7 @@ with col2:
             ).add_to(m)
     else:
         st.error("⚠️ houses 데이터에 lat/lon 컬럼이 없습니다.")
+
     st_folium(m, width=750, height=500)
 
     if "risk_score" in houses.columns:
