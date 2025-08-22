@@ -1,119 +1,211 @@
+# --- 1. 라이브러리 임포트 ---
 import streamlit as st
 import pandas as pd
 import folium
+from folium.plugins import MarkerCluster
 from streamlit_folium import st_folium
+import openai
 import plotly.express as px
 
-# --- 페이지 설정 ---
-st.set_page_config(layout="wide", page_title="전세사기 위험 분석", page_icon="🚨")
+# ✅ OpenAI API Key
+openai.api_key = st.secrets["OPENAI_API_KEY"]
 
-# --- 데이터 로드 ---
-houses = pd.read_csv("fraud_house_location.csv")
-population = pd.read_csv("population_by_dong_2021_2024.csv")
-safety = pd.read_csv("safety_grade_2021_2024.csv")
-deposit = pd.read_csv("deposit_accidents_202407.csv")
-housing = pd.read_csv("housing_status_20250430.csv")
-pop_mob = pd.read_csv("pop_mobility_2020_2024.csv")
-gond = pd.read_csv("gondgondimdae.csv")
-
-# --- deposit accidents 전처리 ---
-if "사고일자" in deposit.columns:
-    deposit["사고일자"] = pd.to_datetime(deposit["사고일자"], errors="coerce")
-
-# --- population 데이터 (wide → long) ---
-population = population.melt(
-    id_vars=["구", "동"], 
-    var_name="year", 
-    value_name="population"
+# --- 2. 페이지 설정 ---
+st.set_page_config(
+    layout="wide",
+    page_title="🏠 수원시 전세사기 위험 매물 분석",
+    page_icon="🚨"
 )
-population["year"] = pd.to_numeric(population["year"], errors="coerce")
-population = population.dropna(subset=["year"])
-population["year"] = population["year"].astype(int)
 
-# --- safety 데이터 (wide → long, 자동 구/동 판단) ---
-if "year" not in safety.columns:
-    id_vars = []
-    if "구" in safety.columns: id_vars.append("구")
-    if "동" in safety.columns: id_vars.append("동")
+# --- 3. CSS (프리미엄 스타일) ---
+st.markdown("""
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+    * { font-family: 'Inter', sans-serif; }
 
-    safety = safety.melt(
-        id_vars=id_vars, 
-        var_name="year", 
-        value_name="safety_score"
+    .premium-header {
+        background: linear-gradient(135deg, #ff6b6b, #feca57);
+        padding: 2rem;
+        border-radius: 16px;
+        text-align: center;
+        color: white;
+        margin-bottom: 2rem;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    }
+
+    .premium-card {
+        background: var(--secondary-background-color);
+        border: 1px solid rgba(128,128,128,0.15);
+        border-radius: 16px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+        transition: all 0.3s ease;
+    }
+    .premium-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 12px 28px rgba(0,0,0,0.12);
+    }
+
+    .metric-box {
+        text-align: center;
+        padding: 1.2rem;
+    }
+    .metric-number {
+        font-size: 2.2rem;
+        font-weight: 700;
+        background: linear-gradient(135deg,#ff6b6b,#feca57);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 0.4rem;
+    }
+    .metric-label {
+        font-size: 1rem;
+        opacity: 0.7;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# --- 4. 데이터 로드 ---
+@st.cache_data
+def load_data():
+    df = pd.read_csv("dataset_15.csv")
+    df["전세가율"] = pd.to_numeric(df["전세가율"], errors="coerce")
+    df["보증금.만원."] = pd.to_numeric(df["보증금.만원."], errors="coerce")
+    df = df.dropna(subset=["위도", "경도"])
+    df["위도_6"] = df["위도"].round(6)
+    df["경도_6"] = df["경도"].round(6)
+    return df
+
+df = load_data()
+
+# --- 5. 헤더 ---
+st.markdown("""
+<div class="premium-header">
+    <h1>🚨 수원시 전세사기 위험 매물 분석</h1>
+    <p>AI 기반 데이터 분석과 GPT 리포트로 전세사기 위험을 한눈에 확인하세요.</p>
+</div>
+""", unsafe_allow_html=True)
+
+# --- 6. 탭 구성 ---
+tab_report, tab_map = st.tabs(["📊 종합 리포트", "🗺️ 위험 매물 지도 & GPT 분석"])
+
+# 📊 종합 리포트
+with tab_report:
+    st.markdown('<div class="premium-card">', unsafe_allow_html=True)
+    st.subheader("📊 주요 지표 요약")
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.markdown(f"""
+        <div class="metric-box">
+            <div class="metric-number">{len(df)}</div>
+            <div class="metric-label">총 매물 수</div>
+        </div>
+        """, unsafe_allow_html=True)
+    with col2:
+        st.markdown(f"""
+        <div class="metric-box">
+            <div class="metric-number">{df['전세가율'].mean():.2f}%</div>
+            <div class="metric-label">평균 전세가율</div>
+        </div>
+        """, unsafe_allow_html=True)
+    with col3:
+        st.markdown(f"""
+        <div class="metric-box">
+            <div class="metric-number">{df['전세가율'].max():.2f}%</div>
+            <div class="metric-label">최고 전세가율</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    st.markdown('<div class="premium-card">', unsafe_allow_html=True)
+    st.markdown("### 전세가율 분포")
+    fig = px.histogram(
+        df, x="전세가율", nbins=30,
+        title="전세가율 분포 히스토그램",
+        labels={"전세가율": "전세가율 (%)"},
+        color_discrete_sequence=["#ff6b6b"]
     )
-    safety["year"] = pd.to_numeric(safety["year"], errors="coerce")
-    safety = safety.dropna(subset=["year"])
-    safety["year"] = safety["year"].astype(int)
+    st.plotly_chart(fig, use_container_width=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
-# --- pop_mobility 데이터 (wide → long) ---
-if "year" not in pop_mob.columns:
-    id_vars = [c for c in pop_mob.columns if c not in ["2020","2021","2022","2023","2024"]]
-    pop_mob = pop_mob.melt(
-        id_vars=id_vars, var_name="year", value_name="mobility"
-    )
-    pop_mob["year"] = pd.to_numeric(pop_mob["year"], errors="coerce")
-    pop_mob = pop_mob.dropna(subset=["year"])
-    pop_mob["year"] = pop_mob["year"].astype(int)
+# 🗺️ 지도 + GPT 분석
+with tab_map:
+    col1, col2 = st.columns([2, 1])
 
-# --- gondgondimdae (wide → long 필요 시) ---
-if any(col.isdigit() for col in gond.columns):  # 연도 컬럼이 있으면
-    id_vars = [c for c in gond.columns if not c.isdigit()]
-    gond = gond.melt(
-        id_vars=id_vars, var_name="year", value_name="value"
-    )
-    gond["year"] = pd.to_numeric(gond["year"], errors="coerce")
-    gond = gond.dropna(subset=["year"])
-    gond["year"] = gond["year"].astype(int)
+    # 지도
+    with col1:
+        st.markdown('<div class="premium-card">', unsafe_allow_html=True)
+        st.subheader("🗺️ 수원시 전세사기 위험 매물 지도")
 
-# --- 사이드바 ---
-st.sidebar.title("🏠 전세사기 위험 대시보드")
-year = st.sidebar.selectbox("연도 선택", sorted(population["year"].unique()))
-theme = st.sidebar.selectbox("색상 테마", ["Blues", "Reds", "Viridis"])
+        m = folium.Map(location=[37.2636, 127.0286], zoom_start=12, tiles="CartoDB positron")
+        marker_cluster = MarkerCluster().add_to(m)
 
-# --- 데이터 필터링 ---
-pop_filtered = population[population["year"] == year]
-safety_filtered = safety[safety["year"] == year]
-
-# --- 레이아웃 ---
-col1, col2, col3 = st.columns([1, 2, 1])
-
-# 📊 컬럼1: 요약
-with col1:
-    st.subheader("📊 주요 지표")
-    st.metric("총 매물 수", len(houses))
-    if "risk_score" in houses.columns:
-        st.metric("평균 위험도", f"{houses['risk_score'].mean():.2f}")
-        st.metric("고위험 매물 수", len(houses[houses["risk_score"] > 0.8]))
-    else:
-        st.warning("⚠️ houses 데이터에 'risk_score' 컬럼이 없습니다.")
-    st.subheader("👥 인구 TOP5")
-    st.write(pop_filtered.groupby("동")["population"].sum().sort_values(ascending=False).head(5))
-
-# 🗺️ 컬럼2: 지도 + 히스토그램
-with col2:
-    st.subheader("🗺️ 위험 지도")
-    m = folium.Map(location=[37.2636, 127.0286], zoom_start=12)
-    if {"lat", "lon"}.issubset(houses.columns):
-        for _, row in houses.iterrows():
+        grouped = df.groupby(["위도_6", "경도_6"])
+        for (lat, lon), group in grouped:
+            if pd.isna(lat) or pd.isna(lon):
+                continue
+            info = "<br>".join(
+                f"<b>{row['단지명']}</b> | 보증금: {row['보증금.만원.']}만원 "
+                f"| 전세가율: {row['전세가율']}% | 계약유형: {row['계약유형']}"
+                for _, row in group.iterrows()
+            )
             folium.CircleMarker(
-                location=[row["lat"], row["lon"]],
-                radius=5,
-                color="red" if row.get("risk_score", 0) > 0.7 else "orange",
-                fill=True, fill_opacity=0.6,
-                popup=f"{row.get('apt_name','알수없음')} | 위험도 {row.get('risk_score','N/A')}"
-            ).add_to(m)
-    st_folium(m, width=750, height=500)
-    if "risk_score" in houses.columns:
-        st.subheader("📈 위험 분포 히스토그램")
-        fig = px.histogram(houses, x="risk_score", nbins=20, color_discrete_sequence=["#ff6b6b"])
-        st.plotly_chart(fig, use_container_width=True)
+                location=[lat, lon],
+                radius=4,
+                color="red",
+                fill=True,
+                fill_opacity=0.6,
+                popup=info
+            ).add_to(marker_cluster)
 
-# 🏆 컬럼3: 랭킹 + 안전지수
-with col3:
-    if "risk_score" in houses.columns and "gu" in houses.columns:
-        st.subheader("🏆 구별 위험도 랭킹")
-        gu_rank = houses.groupby("gu")["risk_score"].mean().sort_values(ascending=False).reset_index()
-        st.table(gu_rank.head(10))
-    if "safety_score" in safety_filtered.columns:
-        st.subheader("🛡️ 안전 지수 TOP5")
-        st.write(safety_filtered.groupby("구")["safety_score"].mean().sort_values(ascending=False).head(5))
+        map_click = st_folium(m, width=750, height=600)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    # GPT 분석 + 매물 리스트 탭
+    with col2:
+        gpt_tab, table_tab = st.tabs(["🤖 GPT 위험 설명", "📋 매물 리스트"])
+
+        # GPT 위험 설명
+        with gpt_tab:
+            st.markdown('<div class="premium-card">', unsafe_allow_html=True)
+            st.subheader("🤖 GPT 위험 설명")
+
+            if "gpt_cache" not in st.session_state:
+                st.session_state["gpt_cache"] = {}
+
+            if map_click and map_click.get("last_object_clicked_popup"):
+                popup_text = map_click["last_object_clicked_popup"]
+                clicked_name = popup_text.split("<br>")[0].replace("<b>", "").replace("</b>", "").strip()
+
+                if clicked_name not in st.session_state["gpt_cache"]:
+                    try:
+                        response = openai.chat.completions.create(
+                            model="gpt-3.5-turbo",
+                            messages=[
+                                {"role": "system", "content": "당신은 부동산 전세사기 위험 분석 전문가입니다."},
+                                {"role": "system", "content": "매물 정보를 바탕으로 위험 요인을 두세 문장으로 간단히 설명하세요."},
+                                {"role": "user", "content": popup_text.replace("<br>", " ")}
+                            ]
+                        )
+                        gpt_reply = response.choices[0].message.content.strip()
+                        st.session_state["gpt_cache"][clicked_name] = gpt_reply
+                    except Exception as e:
+                        st.session_state["gpt_cache"][clicked_name] = f"❌ GPT 호출 실패: {e}"
+
+                st.markdown(f"### 🏠 선택된 매물: {clicked_name}")
+                st.markdown("### 💬 GPT 분석 결과")
+                st.write(st.session_state["gpt_cache"][clicked_name])
+
+            else:
+                st.info("👉 왼쪽 지도에서 매물을 클릭하세요.")
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        # 📋 매물 리스트
+        with table_tab:
+            st.markdown('<div class="premium-card">', unsafe_allow_html=True)
+            st.subheader("📋 전체 매물 리스트")
+            st.dataframe(df[["단지명", "보증금.만원.", "전세가율", "계약유형", "위도", "경도"]])
+            st.markdown('</div>', unsafe_allow_html=True)
