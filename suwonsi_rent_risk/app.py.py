@@ -93,7 +93,7 @@ tab_report, tab_map = st.tabs(["📊 종합 리포트", "🗺️ 위험 매물 �
 # 📊 종합 리포트
 with tab_report:
     st.markdown('<div class="premium-card">', unsafe_allow_html=True)
-    st.subheader("📊 주요 지표 요약")
+    st.subheader("📊 수원시 주요 지표 요약")
 
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -209,3 +209,4 @@ with tab_map:
             st.subheader("📋 전체 매물 리스트")
             st.dataframe(df[["단지명", "보증금.만원.", "전세가율", "계약유형", "위도", "경도"]])
             st.markdown('</div>', unsafe_allow_html=True)
+
