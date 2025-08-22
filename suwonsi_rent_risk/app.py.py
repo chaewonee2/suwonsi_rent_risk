@@ -67,7 +67,7 @@ with col2:
         )
 
         # --- 구별 피해 현황 카드 ---
-        gu = row["시군구"]  # dataset_test.csv 안에 시군구 컬럼
+        gu = row["구"]  # dataset_test.csv 안에 시군구 컬럼
         gu_info = fraud[fraud["구"] == gu]
 
         st.markdown(
@@ -89,3 +89,4 @@ with col2:
 
     else:
         st.info("👉 지도에서 매물을 클릭하세요.")
+
