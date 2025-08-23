@@ -34,23 +34,28 @@ with col1:
     marker_cluster = MarkerCluster().add_to(m)
 
     for _, row in df.iterrows():
-        # ✅ 안전하게 get()으로 불러오기 (KeyError 방지)
         si = row.get("시", "")
         gu = row.get("구", "")
         danji = row.get("단지명", "")
         price = row.get("거래금액.만원.", "")
         rent_type = row.get("계약유형", "")
+        ratio = row.get("전세가율", "")
 
-        tooltip_info = f"""
-        <b>{danji}</b><br>
-        위치: {si} {gu}<br>
-        거래금액: {price}만원<br>
-        계약유형: {rent_type}
+        # 클릭했을 때 표시할 정보 (HTML 카드 스타일)
+        popup_info = f"""
+        <div style="font-size:14px; line-height:1.5;">
+            <b style="font-size:16px;">🏢 {danji}</b><br>
+            📍 위치: {si} {gu}<br>
+            💰 거래금액: <b>{price} 만원</b><br>
+            📑 계약유형: {rent_type}<br>
+            📊 전세가율: {ratio}%
+        </div>
         """
 
         folium.Marker(
             location=[row["위도"], row["경도"]],
-            tooltip=tooltip_info
+            tooltip=f"{danji} ({price}만원)",  # 마우스 오버
+            popup=popup_info                   # 클릭 → 오른쪽에 전달
         ).add_to(marker_cluster)
 
     st_data = st_folium(m, width=900, height=600)
@@ -58,6 +63,7 @@ with col1:
 with col2:
     st.subheader("📋 매물 상세정보")
     if st_data and st_data.get("last_object_clicked_popup"):
-        st.write(st_data["last_object_clicked_popup"])
+        # 클릭한 매물의 상세정보 출력 (HTML 허용)
+        st.markdown(st_data["last_object_clicked_popup"], unsafe_allow_html=True)
     else:
         st.info("지도를 클릭하면 상세정보가 여기에 표시됩니다.")
