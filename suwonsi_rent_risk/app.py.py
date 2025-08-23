@@ -3,7 +3,6 @@ import pandas as pd
 import folium
 from folium.plugins import MarkerCluster
 from streamlit_folium import st_folium
-import re
 
 st.set_page_config(layout="wide")
 st.title("🏠 수원시 전세 매물 지도 (클릭 상세보기)")
@@ -69,7 +68,7 @@ with col_mid:
         else:
             bg_color = "#f0f0f0"
 
-        # ✅ 툴팁 (hover)
+        # ✅ 툴팁 (hover → 예쁜 카드)
         tooltip_html = f"""
         <div style="font-size:13px; line-height:1.6; 
                     border:1px solid #ccc; border-radius:8px; 
@@ -80,21 +79,11 @@ with col_mid:
         </div>
         """
 
-        # ✅ 팝업 (click → unique_key 숨김 태그 포함)
-        popup_html = f"""
-        <div style="font-size:14px; line-height:1.6; 
-                    border:1px solid #444; border-radius:10px; 
-                    background-color:#f9f9f9; padding:10px 14px;">
-            <b style="font-size:16px;">{row['단지명']}</b><br>
-            위험점수: {위험점수}점<br>
-            <span id="unique_key" style="display:none;">{unique_key}</span>
-        </div>
-        """
-
+        # ✅ 팝업 (click → unique_key만 전달, 상세정보 연결용)
         folium.Marker(
             location=[row["위도"], row["경도"]],
             tooltip=folium.Tooltip(tooltip_html, sticky=True),
-            popup=folium.Popup(popup_html, max_width=250)
+            popup=unique_key
         ).add_to(marker_cluster)
 
     st_data = st_folium(m, width=900, height=650)
@@ -104,22 +93,28 @@ with col_right:
     st.subheader("📋 매물 상세정보")
 
     if st_data and st_data.get("last_object_clicked_popup"):
-        clicked_popup = st_data["last_object_clicked_popup"]
+        clicked_key = st_data["last_object_clicked_popup"]
 
-        # popup HTML 안에서 unique_key 추출
-        match = re.search(r'<span id="unique_key" style="display:none;">(.*?)</span>', clicked_popup)
-        if match:
-            clicked_key = match.group(1)
-            row_match = df[df["unique_key"] == clicked_key]
-        else:
-            row_match = pd.DataFrame()
+        # df에서 unique_key로 매칭
+        row_match = df[df["unique_key"] == clicked_key]
 
         if not row_match.empty:
             row = row_match.iloc[0]
             위험점수 = round(row["최종_위험_지표"] * 100, 1)
+
+            # 위험등급 색상 매핑 (상세정보 카드 배경)
+            if row["위험등급"] == "안전":
+                card_color = "#d4f7d4"
+            elif row["위험등급"] == "보통":
+                card_color = "#fff3b0"
+            elif row["위험등급"] == "위험":
+                card_color = "#ffcc99"
+            else:
+                card_color = "#ffffff"
+
             st.markdown(f"""
             <div style="border:1px solid #ddd; border-radius:12px; padding:15px;
-                        background:#fff; line-height:1.6; min-height:400px;">
+                        background:{card_color}; line-height:1.6; min-height:400px;">
                 <h4>🏢 {row['단지명']}</h4>
                 📍 위치: {row['시']} {row['구']}<br>
                 🏗 건축년도: {row['건축년도']}<br>
@@ -129,7 +124,8 @@ with col_right:
                 💰 거래금액: {row['거래금액.만원.']} 만원<br>
                 💵 보증금: {row['보증금.만원.']} 만원<br>
                 🛗 층: {row['층']}층<br>
-                ⚠️ 위험점수: {위험점수}점
+                ⚠️ 위험점수: {위험점수}점<br>
+                🚦 위험등급: {row['위험등급']}
             </div>
             """, unsafe_allow_html=True)
         else:
