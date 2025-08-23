@@ -1,212 +1,114 @@
-# --- 1. 라이브러리 임포트 ---
+#3
 import streamlit as st
 import pandas as pd
 import folium
 from folium.plugins import MarkerCluster
 from streamlit_folium import st_folium
-import openai
-import plotly.express as px
 
-# ✅ OpenAI API Key
-openai.api_key = st.secrets["OPENAI_API_KEY"]
+st.set_page_config(layout="wide")
+st.title("🏠 수원시 전세 매물 지도 (클릭 상세보기)")
 
-# --- 2. 페이지 설정 ---
-st.set_page_config(
-    layout="wide",
-    page_title="🏠 수원시 전세사기 위험 매물 분석",
-    page_icon="🚨"
-)
-
-# --- 3. CSS (프리미엄 스타일) ---
-st.markdown("""
-<style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
-    * { font-family: 'Inter', sans-serif; }
-
-    .premium-header {
-        background: linear-gradient(135deg, #ff6b6b, #feca57);
-        padding: 2rem;
-        border-radius: 16px;
-        text-align: center;
-        color: white;
-        margin-bottom: 2rem;
-        box-shadow: 0 8px 24px rgba(0,0,0,0.15);
-    }
-
-    .premium-card {
-        background: var(--secondary-background-color);
-        border: 1px solid rgba(128,128,128,0.15);
-        border-radius: 16px;
-        padding: 1.5rem;
-        margin-bottom: 1.5rem;
-        box-shadow: 0 6px 18px rgba(0,0,0,0.08);
-        transition: all 0.3s ease;
-    }
-    .premium-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 12px 28px rgba(0,0,0,0.12);
-    }
-
-    .metric-box {
-        text-align: center;
-        padding: 1.2rem;
-    }
-    .metric-number {
-        font-size: 2.2rem;
-        font-weight: 700;
-        background: linear-gradient(135deg,#ff6b6b,#feca57);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        margin-bottom: 0.4rem;
-    }
-    .metric-label {
-        font-size: 1rem;
-        opacity: 0.7;
-    }
-</style>
-""", unsafe_allow_html=True)
-
-# --- 4. 데이터 로드 ---
+# --- 데이터 불러오기 ---
 @st.cache_data
 def load_data():
-    df = pd.read_csv("dataset_15.csv")
-    df["전세가율"] = pd.to_numeric(df["전세가율"], errors="coerce")
-    df["보증금.만원."] = pd.to_numeric(df["보증금.만원."], errors="coerce")
-    df = df.dropna(subset=["위도", "경도"])
-    df["위도_6"] = df["위도"].round(6)
-    df["경도_6"] = df["경도"].round(6)
-    return df
+    df = pd.read_csv("dataset_test.csv")
+
+    # '시', '구' 없으면 자동 분리
+    if "구" not in df.columns or "시" not in df.columns:
+        if "시군구" in df.columns:
+            df[["시", "구"]] = df["시군구"].str.split(" ", n=1, expand=True)
+
+    # 전세가율 숫자형 변환
+    if "전세가율" in df.columns:
+        df["전세가율"] = pd.to_numeric(df["전세가율"], errors="coerce").round(0)
+
+    return df.dropna(subset=["위도", "경도"])
 
 df = load_data()
 
-# --- 5. 헤더 ---
-st.markdown("""
-<div class="premium-header">
-    <h1>🚨 수원시 전세사기 위험 매물 분석</h1>
-    <p>AI 기반 데이터 분석과 GPT 리포트로 전세사기 위험을 한눈에 확인하세요.</p>
-</div>
-""", unsafe_allow_html=True)
+# --- 지도 + 상세 정보 ---
+col1, col2 = st.columns([2, 1])
 
-# --- 6. 탭 구성 ---
-tab_report, tab_map = st.tabs(["📊 종합 리포트", "🗺️ 위험 매물 지도 & GPT 분석"])
+with col1:
+    m = folium.Map(location=[37.2636, 127.0286], zoom_start=12, tiles="CartoDB positron")
+    marker_cluster = MarkerCluster().add_to(m)
 
-# 📊 종합 리포트
-with tab_report:
-    st.markdown('<div class="premium-card">', unsafe_allow_html=True)
-    st.subheader("📊 수원시 주요 지표 요약")
+    for i, row in df.iterrows():
+        si = row.get("시", "")
+        gu = row.get("구", "")
+        danji = row.get("단지명", "")
+        price = row.get("거래금액.만원.", "")
+        rent_type = row.get("계약유형", "")
+        ratio = row.get("전세가율", "")
+        area = row.get("전용면적", "")
+        year = row.get("건축년도", "")
+        risk = row.get("위험도점수", "N/A")
+        floor = row.get("층", "")
 
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.markdown(f"""
-        <div class="metric-box">
-            <div class="metric-number">{len(df)}</div>
-            <div class="metric-label">총 매물 수</div>
+        # ✅ 고유 키 (단지명 + 층)
+        unique_key = f"{danji}_{floor}"
+
+        # 지도 팝업 (간단 카드)
+        popup_html = f"""
+        <div style="
+            width:150px; height:80px;
+            border:1px solid #888;
+            border-radius:8px;
+            background:#f9f9f9;
+            text-align:center;
+            display:flex;
+            flex-direction:column;
+            justify-content:center;
+            align-items:center;
+            font-size:13px;
+            font-weight:bold;">
+            {danji}<br>⚠️ 위험도: {risk}점
         </div>
-        """, unsafe_allow_html=True)
-    with col2:
-        st.markdown(f"""
-        <div class="metric-box">
-            <div class="metric-number">{df['전세가율'].mean():.2f}%</div>
-            <div class="metric-label">평균 전세가율</div>
+        """
+
+        folium.Marker(
+            location=[row["위도"], row["경도"]],
+            tooltip=f"{danji} ({risk}점)",
+            popup=unique_key  # ✅ 고유 key 전달
+        ).add_to(marker_cluster)
+
+        # 오른쪽 상세 카드 HTML
+        detail_info = f"""
+        <div style="
+            border:1px solid #ddd;
+            border-radius:12px;
+            padding:15px;
+            margin-bottom:15px;
+            box-shadow:2px 2px 8px rgba(0,0,0,0.1);
+            background-color:white;
+            font-size:14px;
+            line-height:1.6;">
+            
+            <h3 style="margin:0 0 10px 0;">🏢 {danji}</h3>
+            <p>📍 <b>위치:</b> {si} {gu}</p>
+            <p>💰 <b>거래금액:</b> {price} 만원</p>
+            <p>📑 <b>계약유형:</b> {rent_type}</p>
+            <p>📊 <b>전세가율:</b> {ratio}%</p>
+            <p>📐 <b>전용면적:</b> {area}㎡</p>
+            <p>🏗 <b>건축년도:</b> {year}</p>
+            <p>🛗 <b>층:</b> {floor}</p>
+            <p>⚠️ <b>위험도점수:</b> {risk}점</p>
         </div>
-        """, unsafe_allow_html=True)
-    with col3:
-        st.markdown(f"""
-        <div class="metric-box">
-            <div class="metric-number">{df['전세가율'].max():.2f}%</div>
-            <div class="metric-label">최고 전세가율</div>
-        </div>
-        """, unsafe_allow_html=True)
+        """
 
-    st.markdown('</div>', unsafe_allow_html=True)
+        df.at[i, "unique_key"] = unique_key
+        df.at[i, "detail_info"] = detail_info
 
-    st.markdown('<div class="premium-card">', unsafe_allow_html=True)
-    st.markdown("### 전세가율 분포")
-    fig = px.histogram(
-        df, x="전세가율", nbins=30,
-        title="전세가율 분포 히스토그램",
-        labels={"전세가율": "전세가율 (%)"},
-        color_discrete_sequence=["#ff6b6b"]
-    )
-    st.plotly_chart(fig, use_container_width=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+    st_data = st_folium(m, width=900, height=600)
 
-# 🗺️ 지도 + GPT 분석
-with tab_map:
-    col1, col2 = st.columns([2, 1])
-
-    # 지도
-    with col1:
-        st.markdown('<div class="premium-card">', unsafe_allow_html=True)
-        st.subheader("🗺️ 수원시 전세사기 위험 매물 지도")
-
-        m = folium.Map(location=[37.2636, 127.0286], zoom_start=12, tiles="CartoDB positron")
-        marker_cluster = MarkerCluster().add_to(m)
-
-        grouped = df.groupby(["위도_6", "경도_6"])
-        for (lat, lon), group in grouped:
-            if pd.isna(lat) or pd.isna(lon):
-                continue
-            info = "<br>".join(
-                f"<b>{row['단지명']}</b> | 보증금: {row['보증금.만원.']}만원 "
-                f"| 전세가율: {row['전세가율']}% | 계약유형: {row['계약유형']}"
-                for _, row in group.iterrows()
-            )
-            folium.CircleMarker(
-                location=[lat, lon],
-                radius=4,
-                color="red",
-                fill=True,
-                fill_opacity=0.6,
-                popup=info
-            ).add_to(marker_cluster)
-
-        map_click = st_folium(m, width=750, height=600)
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    # GPT 분석 + 매물 리스트 탭
-    with col2:
-        gpt_tab, table_tab = st.tabs(["🤖 GPT 위험 설명", "📋 매물 리스트"])
-
-        # GPT 위험 설명
-        with gpt_tab:
-            st.markdown('<div class="premium-card">', unsafe_allow_html=True)
-            st.subheader("🤖 GPT 위험 설명")
-
-            if "gpt_cache" not in st.session_state:
-                st.session_state["gpt_cache"] = {}
-
-            if map_click and map_click.get("last_object_clicked_popup"):
-                popup_text = map_click["last_object_clicked_popup"]
-                clicked_name = popup_text.split("<br>")[0].replace("<b>", "").replace("</b>", "").strip()
-
-                if clicked_name not in st.session_state["gpt_cache"]:
-                    try:
-                        response = openai.chat.completions.create(
-                            model="gpt-3.5-turbo",
-                            messages=[
-                                {"role": "system", "content": "당신은 부동산 전세사기 위험 분석 전문가입니다."},
-                                {"role": "system", "content": "매물 정보를 바탕으로 위험 요인을 두세 문장으로 간단히 설명하세요."},
-                                {"role": "user", "content": popup_text.replace("<br>", " ")}
-                            ]
-                        )
-                        gpt_reply = response.choices[0].message.content.strip()
-                        st.session_state["gpt_cache"][clicked_name] = gpt_reply
-                    except Exception as e:
-                        st.session_state["gpt_cache"][clicked_name] = f"❌ GPT 호출 실패: {e}"
-
-                st.markdown(f"### 🏠 선택된 매물: {clicked_name}")
-                st.markdown("### 💬 GPT 분석 결과")
-                st.write(st.session_state["gpt_cache"][clicked_name])
-
-            else:
-                st.info("👉 왼쪽 지도에서 매물을 클릭하세요.")
-            st.markdown('</div>', unsafe_allow_html=True)
-
-        # 📋 매물 리스트
-        with table_tab:
-            st.markdown('<div class="premium-card">', unsafe_allow_html=True)
-            st.subheader("📋 전체 매물 리스트")
-            st.dataframe(df[["단지명", "보증금.만원.", "전세가율", "계약유형", "위도", "경도"]])
-            st.markdown('</div>', unsafe_allow_html=True)
-
+with col2:
+    st.subheader("📋 매물 상세정보")
+    if st_data and st_data.get("last_object_clicked_popup"):
+        clicked_key = st_data["last_object_clicked_popup"]
+        row_match = df[df["unique_key"] == clicked_key]
+        if not row_match.empty:
+            st.markdown(row_match.iloc[0]["detail_info"], unsafe_allow_html=True)
+        else:
+            st.warning(f"선택한 매물 정보를 찾을 수 없습니다. (key={clicked_key})")
+    else:
+        st.info("지도를 클릭하면 상세정보가 여기에 표시됩니다.")
