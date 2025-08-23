@@ -43,14 +43,31 @@ with col1:
         year = row.get("건축년도", "")
         risk = row.get("위험도점수", "N/A")   # 위험도점수 컬럼 있다고 가정
 
-        # 지도 팝업 (간단 정보)
+        # --- 지도 팝업 (정사각형 느낌 카드) ---
+        popup_html = f"""
+        <div style="
+            width:150px; height:80px;
+            border:1px solid #888;
+            border-radius:8px;
+            background:#f9f9f9;
+            text-align:center;
+            display:flex;
+            flex-direction:column;
+            justify-content:center;
+            align-items:center;
+            font-size:13px;
+            font-weight:bold;">
+            {danji}<br>⚠️ 위험도: {risk}점
+        </div>
+        """
+
         folium.Marker(
             location=[row["위도"], row["경도"]],
-            tooltip=f"{danji}\n위험도: {risk}점",
-            popup=danji  # 단지명만 popup (키 값)
+            tooltip=f"{danji} ({risk}점)",
+            popup=popup_html
         ).add_to(marker_cluster)
 
-        # 오른쪽 카드용 HTML
+        # --- 오른쪽 상세 카드 HTML ---
         detail_info = f"""
         <div style="
             border:1px solid #ddd;
