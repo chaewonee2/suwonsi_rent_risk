@@ -26,11 +26,13 @@ def load_data():
 df = load_data()
 
 # ----------------
-# 3열 레이아웃
+# 2열 레이아웃 (왼쪽: 지역정보+지도 / 오른쪽: 매물상세정보)
 # ----------------
-col_left, col_mid, col_right = st.columns([0.8, 2.8, 0.8], gap="small")
+col_left, col_right = st.columns([2.8, 1.5], gap="small")
 
-# 지역정보 (왼쪽)
+# ----------------
+# 왼쪽 영역 (지역정보 + 지도)
+# ----------------
 with col_left:
     st.subheader("🌍 지역정보")
     selected_gu = st.radio(
@@ -40,14 +42,13 @@ with col_left:
 
     st.markdown(f"""
     <div style="border:1px solid #ddd; border-radius:12px; padding:15px;
-                background:#fff; line-height:1.6; min-height:400px;">
+                background:#fff; line-height:1.6; min-height:150px;">
         <h4>🏙️ {selected_gu}</h4>
         👉 여기에 {selected_gu} 지역정보가 표시될 예정입니다.
     </div>
     """, unsafe_allow_html=True)
 
-# 지도 (가운데)
-with col_mid:
+    # 지도
     m = folium.Map(location=[37.2636, 127.0286], zoom_start=12, tiles="CartoDB positron")
     marker_cluster = MarkerCluster().add_to(m)
 
@@ -55,20 +56,20 @@ with col_mid:
         unique_key = f"{row['단지명']}_{row['층']}"
         df.at[i, "unique_key"] = unique_key
 
-        # 위험점수 계산
+        # 위험점수
         위험점수 = round(row["최종_위험_지표"] * 100, 1)
 
         # 위험등급 색상 매핑
         if row["위험등급"] == "안전":
-            bg_color = "#d4f7d4"  # 연한 초록
+            bg_color = "#d4f7d4"
         elif row["위험등급"] == "보통":
-            bg_color = "#fff3b0"  # 연한 노랑
+            bg_color = "#fff3b0"
         elif row["위험등급"] == "위험":
-            bg_color = "#ffcc99"  # 연한 주황
+            bg_color = "#ffcc99"
         else:
             bg_color = "#f0f0f0"
 
-        # ✅ 툴팁 (hover)
+        # 툴팁 (hover)
         tooltip_html = f"""
         <div style="font-size:13px; line-height:1.6; 
                     border:1px solid #ccc; border-radius:8px; 
@@ -79,14 +80,14 @@ with col_mid:
         </div>
         """
 
-        # ✅ 팝업 (click → 단지명 / 주택유형만)
+        # 팝업 (click → 단지명 / 주택유형만)
         popup_html = f"""
         <div style="font-size:14px; line-height:1.8; 
                     border:1px solid #444; border-radius:10px; 
                     background-color:#f9f9f9; padding:10px 14px;">
             <b>단지명:</b> {row['단지명']}<br>
             <b>주택유형:</b> {row['주택유형']}<br>
-            {unique_key}  <!-- 연결용 unique_key -->
+            {unique_key} <!-- 연결용 unique_key -->
         </div>
         """
 
@@ -98,14 +99,16 @@ with col_mid:
 
     st_data = st_folium(m, width=900, height=650)
 
-# 매물정보 (오른쪽)
+# ----------------
+# 오른쪽 영역 (매물 상세정보)
+# ----------------
 with col_right:
     st.subheader("📋 매물 상세정보")
 
     if st_data and st_data.get("last_object_clicked_popup"):
         clicked_popup = st_data["last_object_clicked_popup"]
 
-        # popup_html 안에서 unique_key 추출
+        # popup 안의 unique_key로 매칭
         clicked_key = None
         for key in df["unique_key"]:
             if key in clicked_popup:
@@ -133,7 +136,7 @@ with col_right:
 
             st.markdown(f"""
             <div style="border:1px solid #ddd; border-radius:12px; padding:20px;
-                        background:{card_color}; line-height:1.6; min-height:600px;">
+                        background:{card_color}; line-height:1.6; min-height:600px; width:100%;">
                 <h4>🏢 {row['단지명']}</h4>
                 📍 위치: {row['시']} {row['구']}<br>
                 🏗 건축년도: {row['건축년도']}<br>
