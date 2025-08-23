@@ -26,7 +26,7 @@ def load_data():
 df = load_data()
 
 # ----------------
-# 3열 레이아웃 (지도 넓게, 여백 최소화)
+# 3열 레이아웃
 # ----------------
 col_left, col_mid, col_right = st.columns([0.8, 2.8, 0.8], gap="small")
 
@@ -46,21 +46,31 @@ with col_left:
     </div>
     """, unsafe_allow_html=True)
 
-# 지도 (가운데 → 넓게)
+# 지도 (가운데)
 with col_mid:
     m = folium.Map(location=[37.2636, 127.0286], zoom_start=12, tiles="CartoDB positron")
     marker_cluster = MarkerCluster().add_to(m)
 
     for i, row in df.iterrows():
         unique_key = f"{row['단지명']}_{row['층']}"
-       folium.Marker(
-    location=[row["위도"], row["경도"]],
-    tooltip=f"{row['단지명']} · {row['주택유형']}",  # 단지명 + 주택유형만
-    popup=unique_key
+
+        # ✅ 툴팁: 단지명 굵고 크게 + 줄바꿈 후 주택유형
+        tooltip_html = f"""
+        <div style="font-size:14px; line-height:1.4;">
+            <b style="font-size:16px;">{row['단지명']}</b><br>
+            {row['주택유형']}
+        </div>
+        """
+
+        folium.Marker(
+            location=[row["위도"], row["경도"]],
+            tooltip=folium.Tooltip(tooltip_html, sticky=True),
+            popup=unique_key
         ).add_to(marker_cluster)
+
         df.at[i, "unique_key"] = unique_key
 
-    st_data = st_folium(m, width=900, height=650)  # 지도 더 크게
+    st_data = st_folium(m, width=900, height=650)
 
 # 매물정보 (오른쪽)
 with col_right:
@@ -90,4 +100,3 @@ with col_right:
             st.info("지도를 클릭하면 매물 정보가 표시됩니다.")
     else:
         st.info("지도를 클릭하면 매물 정보가 표시됩니다.")
-
