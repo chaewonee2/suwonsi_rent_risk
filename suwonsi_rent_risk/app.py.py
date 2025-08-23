@@ -68,7 +68,7 @@ with col_mid:
         else:
             bg_color = "#f0f0f0"
 
-        # ✅ 툴팁 (hover → 예쁜 카드)
+        # ✅ 툴팁 (hover)
         tooltip_html = f"""
         <div style="font-size:13px; line-height:1.6; 
                     border:1px solid #ccc; border-radius:8px; 
@@ -79,11 +79,21 @@ with col_mid:
         </div>
         """
 
-        # ✅ 팝업 (click → unique_key만 전달, 상세정보 연결용)
+        # ✅ 팝업 (click → 단지명 / 주택유형만)
+        popup_html = f"""
+        <div style="font-size:14px; line-height:1.8; 
+                    border:1px solid #444; border-radius:10px; 
+                    background-color:#f9f9f9; padding:10px 14px;">
+            <b>단지명:</b> {row['단지명']}<br>
+            <b>주택유형:</b> {row['주택유형']}<br>
+            {unique_key}  <!-- 연결용 unique_key -->
+        </div>
+        """
+
         folium.Marker(
             location=[row["위도"], row["경도"]],
             tooltip=folium.Tooltip(tooltip_html, sticky=True),
-            popup=unique_key
+            popup=folium.Popup(popup_html, max_width=300)
         ).add_to(marker_cluster)
 
     st_data = st_folium(m, width=900, height=650)
@@ -93,10 +103,19 @@ with col_right:
     st.subheader("📋 매물 상세정보")
 
     if st_data and st_data.get("last_object_clicked_popup"):
-        clicked_key = st_data["last_object_clicked_popup"]
+        clicked_popup = st_data["last_object_clicked_popup"]
 
-        # df에서 unique_key로 매칭
-        row_match = df[df["unique_key"] == clicked_key]
+        # popup_html 안에서 unique_key 추출
+        clicked_key = None
+        for key in df["unique_key"]:
+            if key in clicked_popup:
+                clicked_key = key
+                break
+
+        if clicked_key:
+            row_match = df[df["unique_key"] == clicked_key]
+        else:
+            row_match = pd.DataFrame()
 
         if not row_match.empty:
             row = row_match.iloc[0]
@@ -113,8 +132,8 @@ with col_right:
                 card_color = "#ffffff"
 
             st.markdown(f"""
-            <div style="border:1px solid #ddd; border-radius:12px; padding:15px;
-                        background:{card_color}; line-height:1.6; min-height:400px;">
+            <div style="border:1px solid #ddd; border-radius:12px; padding:20px;
+                        background:{card_color}; line-height:1.6; min-height:600px;">
                 <h4>🏢 {row['단지명']}</h4>
                 📍 위치: {row['시']} {row['구']}<br>
                 🏗 건축년도: {row['건축년도']}<br>
