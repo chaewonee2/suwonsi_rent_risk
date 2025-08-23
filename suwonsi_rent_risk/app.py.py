@@ -54,18 +54,44 @@ with col_mid:
     for i, row in df.iterrows():
         unique_key = f"{row['단지명']}_{row['층']}"
 
-        # ✅ 툴팁: 단지명 굵고 크게 + 줄바꿈 후 주택유형
+        # 위험점수 변환
+        위험점수 = round(row["최종_위험_지표"] * 100, 1)  # 0.787 → 78.7점
+
+        # 위험등급 색상 매핑
+        if row["위험등급"] == "안전":
+            bg_color = "#d4f7d4"  # 연한 초록
+        elif row["위험등급"] == "보통":
+            bg_color = "#fff3b0"  # 연한 노랑
+        elif row["위험등급"] == "위험":
+            bg_color = "#ffcc99"  # 연한 주황
+        else:
+            bg_color = "#f0f0f0"  # 기본 회색
+
+        # ✅ 툴팁 HTML (단지명 + 주택유형 + 위험등급)
         tooltip_html = f"""
-        <div style="font-size:14px; line-height:1.4;">
+        <div style="font-size:13px; line-height:1.6; 
+                    border:1px solid #ccc; border-radius:8px; 
+                    background-color:{bg_color}; padding:6px 10px;">
+            <b>단지명:</b> {row['단지명']}<br>
+            <b>주택유형:</b> {row['주택유형']}<br>
+            <b>위험등급:</b> {row['위험등급']}
+        </div>
+        """
+
+        # ✅ 팝업 HTML (단지명 + 위험점수)
+        popup_html = f"""
+        <div style="font-size:14px; line-height:1.6; 
+                    border:1px solid #444; border-radius:10px; 
+                    background-color:#f9f9f9; padding:10px 14px;">
             <b style="font-size:16px;">{row['단지명']}</b><br>
-            {row['주택유형']}
+            위험점수: {위험점수}점
         </div>
         """
 
         folium.Marker(
             location=[row["위도"], row["경도"]],
             tooltip=folium.Tooltip(tooltip_html, sticky=True),
-            popup=unique_key
+            popup=folium.Popup(popup_html, max_width=250)
         ).add_to(marker_cluster)
 
         df.at[i, "unique_key"] = unique_key
