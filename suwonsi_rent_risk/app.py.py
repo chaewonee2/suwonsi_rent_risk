@@ -136,6 +136,8 @@ with col_right:
                         background:{card_color}; line-height:1.6; min-height:600px;">
                 <h4>🏢 {row['단지명']}</h4>
                 📍 위치: {row['시']} {row['구']}<br>
+                ⚠️ 위험점수: {위험점수}점<br>
+                🚦 위험등급: {row['위험등급']}
                 🏗 건축년도: {row['건축년도']}<br>
                 🏠 주택유형: {row['주택유형']}<br>
                 📊 전세가율: {row['전세가율']}%<br>
@@ -143,12 +145,12 @@ with col_right:
                 💰 거래금액: {row['거래금액.만원.']} 만원<br>
                 💵 보증금: {row['보증금.만원.']} 만원<br>
                 🛗 층: {row['층']}층<br>
-                ⚠️ 위험점수: {위험점수}점<br>
-                🚦 위험등급: {row['위험등급']}
+                
             </div>
             """, unsafe_allow_html=True)
         else:
             st.info("지도를 클릭하면 매물 정보가 표시됩니다.")
     else:
         st.info("지도를 클릭하면 매물 정보가 표시됩니다.")
+
 
