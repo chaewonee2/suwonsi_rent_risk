@@ -53,10 +53,10 @@ with col_mid:
 
     for i, row in df.iterrows():
         unique_key = f"{row['단지명']}_{row['층']}"
-        folium.Marker(
-            location=[row["위도"], row["경도"]],
-            tooltip=f"{row['단지명']} ({row['전세가율']}%)",
-            popup=unique_key
+       folium.Marker(
+    location=[row["위도"], row["경도"]],
+    tooltip=f"{row['단지명']} · {row['주택유형']}",  # 단지명 + 주택유형만
+    popup=unique_key
         ).add_to(marker_cluster)
         df.at[i, "unique_key"] = unique_key
 
@@ -90,3 +90,4 @@ with col_right:
             st.info("지도를 클릭하면 매물 정보가 표시됩니다.")
     else:
         st.info("지도를 클릭하면 매물 정보가 표시됩니다.")
+
