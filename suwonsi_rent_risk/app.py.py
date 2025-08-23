@@ -26,9 +26,9 @@ def load_data():
 df = load_data()
 
 # ----------------
-# 3열 레이아웃
+# 3열 레이아웃 (지도 넓게, 여백 최소화)
 # ----------------
-col_left, col_mid, col_right = st.columns([1, 2, 1])
+col_left, col_mid, col_right = st.columns([0.8, 2.8, 0.8], gap="small")
 
 # 지역정보 (왼쪽)
 with col_left:
@@ -46,7 +46,7 @@ with col_left:
     </div>
     """, unsafe_allow_html=True)
 
-# 지도 (가운데)
+# 지도 (가운데 → 넓게)
 with col_mid:
     m = folium.Map(location=[37.2636, 127.0286], zoom_start=12, tiles="CartoDB positron")
     marker_cluster = MarkerCluster().add_to(m)
@@ -60,7 +60,7 @@ with col_mid:
         ).add_to(marker_cluster)
         df.at[i, "unique_key"] = unique_key
 
-    st_data = st_folium(m, width=600, height=600)
+    st_data = st_folium(m, width=900, height=650)  # 지도 더 크게
 
 # 매물정보 (오른쪽)
 with col_right:
