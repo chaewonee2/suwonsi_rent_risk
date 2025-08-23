@@ -135,9 +135,9 @@ with col_right:
             <div style="border:1px solid #ddd; border-radius:12px; padding:20px;
                         background:{card_color}; line-height:1.6; min-height:600px;">
                 <h4>🏢 {row['단지명']}</h4>
+                <h5>🚦 위험등급: {row['위험등급']}</h5>
+                <h5>⚠️ 위험점수: {위험점수}점<br><h5>
                 📍 위치: {row['시']} {row['구']}<br>
-                ⚠️ 위험점수: {위험점수}점<br>
-                🚦 위험등급: {row['위험등급']}
                 🏗 건축년도: {row['건축년도']}<br>
                 🏠 주택유형: {row['주택유형']}<br>
                 📊 전세가율: {row['전세가율']}%<br>
@@ -152,5 +152,6 @@ with col_right:
             st.info("지도를 클릭하면 매물 정보가 표시됩니다.")
     else:
         st.info("지도를 클릭하면 매물 정보가 표시됩니다.")
+
 
 
