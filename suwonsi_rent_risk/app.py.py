@@ -41,9 +41,13 @@ with col1:
         ratio = row.get("전세가율", "")
         area = row.get("전용면적", "")
         year = row.get("건축년도", "")
-        risk = row.get("위험도점수", "N/A")   # 위험도점수 컬럼 있다고 가정
+        risk = row.get("위험도점수", "N/A")
+        floor = row.get("층", "")
 
-        # --- 지도 팝업 (정사각형 느낌 카드) ---
+        # ✅ 고유 키 (단지명 + 층)
+        unique_key = f"{danji}_{floor}"
+
+        # 지도 팝업 (간단 카드)
         popup_html = f"""
         <div style="
             width:150px; height:80px;
@@ -64,10 +68,10 @@ with col1:
         folium.Marker(
             location=[row["위도"], row["경도"]],
             tooltip=f"{danji} ({risk}점)",
-            popup=popup_html
+            popup=unique_key  # ✅ 고유 key 전달
         ).add_to(marker_cluster)
 
-        # --- 오른쪽 상세 카드 HTML ---
+        # 오른쪽 상세 카드 HTML
         detail_info = f"""
         <div style="
             border:1px solid #ddd;
@@ -86,10 +90,12 @@ with col1:
             <p>📊 <b>전세가율:</b> {ratio}%</p>
             <p>📐 <b>전용면적:</b> {area}㎡</p>
             <p>🏗 <b>건축년도:</b> {year}</p>
+            <p>🛗 <b>층:</b> {floor}</p>
             <p>⚠️ <b>위험도점수:</b> {risk}점</p>
         </div>
         """
 
+        df.at[i, "unique_key"] = unique_key
         df.at[i, "detail_info"] = detail_info
 
     st_data = st_folium(m, width=900, height=600)
@@ -97,9 +103,11 @@ with col1:
 with col2:
     st.subheader("📋 매물 상세정보")
     if st_data and st_data.get("last_object_clicked_popup"):
-        clicked_name = st_data["last_object_clicked_popup"]
-        row_match = df[df["단지명"] == clicked_name]
+        clicked_key = st_data["last_object_clicked_popup"]
+        row_match = df[df["unique_key"] == clicked_key]
         if not row_match.empty:
             st.markdown(row_match.iloc[0]["detail_info"], unsafe_allow_html=True)
+        else:
+            st.warning(f"선택한 매물 정보를 찾을 수 없습니다. (key={clicked_key})")
     else:
         st.info("지도를 클릭하면 상세정보가 여기에 표시됩니다.")
