@@ -67,7 +67,7 @@ with col_mid:
         # 위험등급 색상 매핑
         if row["위험등급"] == "안전":
             bg_color = "#d4f7d4"
-        elif row["위험등급"] == "보통":
+        elif row["위험등급"] == "주의":
             bg_color = "#fff3b0"
         elif row["위험등급"] == "위험":
             bg_color = "#ffcc99"
@@ -133,7 +133,7 @@ with col_right:
             # 위험등급 색상 매핑 (상세정보 카드 배경)
             if row["위험등급"] == "안전":
                 card_color = "#d4f7d4"
-            elif row["위험등급"] == "보통":
+            elif row["위험등급"] == "주의":
                 card_color = "#fff3b0"
             elif row["위험등급"] == "위험":
                 card_color = "#ffcc99"
@@ -146,13 +146,16 @@ with col_right:
                 <h4>🏢 {row['단지명']}</h4>
                 <h5>🚦 위험등급: {row['위험등급']}</h5>
                 <h5>⚠️ 위험점수: {위험점수}점</h5>
+                <h5>📊 전세가율: {row['전세가율']}</h5>
                 📍 위치: {row['시']} {row['구']}<br>
                 🏗 건축년도: {row['건축년도']}<br>
                 🏠 주택유형: {row['주택유형']}<br>
-                📊 전세가율: {row['전세가율']}%<br>
+                🏠 임대구분: {row['임대구분']}<br>
                 📑 계약유형: {row['계약유형']}<br>
+                📑 주택인허가 : {row['주택인허가']}<br>
                 💰 거래금액: {row['거래금액.만원.']} 만원<br>
                 💵 보증금: {row['보증금.만원.']} 만원<br>
+                🏠 전용면적: {row['전용면적']}<br>
                 🛗 층: {row['층']}층<br>
             </div>
             """, unsafe_allow_html=True)
@@ -160,3 +163,4 @@ with col_right:
             st.info("지도를 클릭하면 매물 정보가 표시됩니다.")
     else:
         st.info("지도를 클릭하면 매물 정보가 표시됩니다.")
+
