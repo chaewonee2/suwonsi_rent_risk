@@ -189,7 +189,7 @@ if row is not None:
     try:
         client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4.0",   # ✅ GPT-4.0으로 변경
             messages=[
                 {"role": "system", "content": "너는 전세사기 분석 및 컨설팅 전문가야."},
                 {"role": "user", "content": prompt}
