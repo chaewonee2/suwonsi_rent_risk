@@ -12,7 +12,7 @@ st.title("🏠 수원시 전세 매물 지도 (클릭 상세보기)")
 # ----------------
 @st.cache_data
 def load_data():
-    df = pd.read_csv("dataset_test.csv")
+    df = pd.read_csv("dataset_19_ex.csv")
 
     if "구" not in df.columns or "시" not in df.columns:
         if "시군구" in df.columns:
@@ -61,7 +61,7 @@ with col_mid:
         # 위험등급 색상 매핑
         if row["위험등급"] == "안전":
             bg_color = "#d4f7d4"  # 연한 초록
-        elif row["위험등급"] == "보통":
+        elif row["위험등급"] == "주의":
             bg_color = "#fff3b0"  # 연한 노랑
         elif row["위험등급"] == "위험":
             bg_color = "#ffcc99"  # 연한 주황
@@ -124,7 +124,7 @@ with col_right:
             # 위험등급 색상 매핑 (상세정보 카드 배경)
             if row["위험등급"] == "안전":
                 card_color = "#d4f7d4"
-            elif row["위험등급"] == "보통":
+            elif row["위험등급"] == "주의":
                 card_color = "#fff3b0"
             elif row["위험등급"] == "위험":
                 card_color = "#ffcc99"
@@ -152,6 +152,7 @@ with col_right:
             st.info("지도를 클릭하면 매물 정보가 표시됩니다.")
     else:
         st.info("지도를 클릭하면 매물 정보가 표시됩니다.")
+
 
 
 
