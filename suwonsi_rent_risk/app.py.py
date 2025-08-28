@@ -56,7 +56,7 @@ with col_mid:
         df.at[i, "unique_key"] = unique_key
 
         # 위험점수 계산
-        위험점수 = round(row["최종_위험_지표"] * 100, 1)
+        위험점수 = round(row["위험확률"] , 1)
 
         # 위험등급 색상 매핑
         if row["위험등급"] == "안전":
@@ -152,6 +152,7 @@ with col_right:
             st.info("지도를 클릭하면 매물 정보가 표시됩니다.")
     else:
         st.info("지도를 클릭하면 매물 정보가 표시됩니다.")
+
 
 
 
