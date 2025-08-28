@@ -3,7 +3,6 @@ import pandas as pd
 import folium
 from folium.plugins import MarkerCluster
 from streamlit_folium import st_folium
-from openai import OpenAI
 
 st.set_page_config(layout="wide")
 st.title("🏠 수원시 전세 매물 위험 탐지")
@@ -13,7 +12,7 @@ st.title("🏠 수원시 전세 매물 위험 탐지")
 # ----------------
 @st.cache_data
 def load_data():
-    df = pd.read_csv("dataset_19_ex.csv")  # ⚠️ 실행 환경에 맞게 파일명 조정
+    df = pd.read_csv("dataset_19_ex.csv")  # ⚠️ 파일명 실행환경에 맞게 수정
 
     # 시군구 → 시, 구 분리
     if "구" not in df.columns or "시" not in df.columns:
@@ -62,7 +61,7 @@ with col_mid:
         unique_key = f"{row['단지명']}_{row['층']}"
         df.at[i, "unique_key"] = unique_key
 
-        # ✅ 위험점수 (위험확률이 이미 % 값이므로 그대로 사용)
+        # 위험점수 (% 값 그대로 사용)
         위험점수 = round(row["위험확률"], 1)
 
         # 위험등급 색상 매핑
@@ -94,7 +93,7 @@ with col_mid:
                     background-color:#f9f9f9; padding:10px 14px;">
             <b>단지명:</b> {row['단지명']}<br>
             <b>주택유형:</b> {row['주택유형']}<br>
-            {unique_key}  <!-- 연결용 unique_key -->
+            {unique_key}
         </div>
         """
 
@@ -132,7 +131,7 @@ with col_right:
             row = row_match.iloc[0]
             위험점수 = round(row["위험확률"], 1)
 
-            # 위험등급 색상 매핑 (상세정보 카드 배경)
+            # 위험등급 색상 매핑
             if row["위험등급"] == "안전":
                 card_color = "#d4f7d4"
             elif row["위험등급"] == "주의":
@@ -161,49 +160,50 @@ with col_right:
                 🛗 층: {row['층']}층<br>
             </div>
             """, unsafe_allow_html=True)
+
+            # ----------------
+            # GPT 설명 카드 (새로운 카드로 추가)
+            # ----------------
+            gpt_text = f"""
+            <div style="border:1px solid #ddd; border-radius:12px; padding:20px;
+                        background:#fdf6e3; line-height:1.6; margin-top:20px;">
+                <h4>🤖 전세사기 컨설턴트 조언</h4>
+                <p>이 매물에서 특히 주의해야 할 위험 신호 3가지를 말씀드릴게요.<br>
+                데이터 분석 결과 ‘안전’보다는 한 단계 낮은 <b>주의 등급</b>에 속합니다.<br>
+                즉, 아직은 심각한 위험은 아니지만, 문제가 발생할 가능성이 열려있다는 뜻이에요.</p>
+
+                <p><b>건축년도 ({row['건축년도']}년)</b><br>
+                오래된 아파트라 관리비 체납, 집주인의 유지·보수 부담이 클 수 있습니다.<br>
+                이런 경우 전세금을 돌려받지 못하는 사례가 상대적으로 많습니다.</p>
+
+                <p><b>보증금 규모 ({row['보증금.만원.']} 만원)</b><br>
+                보증금이 크기 때문에 집주인 문제 발생 시 피해액이 커질 수 있습니다.<br>
+                최근 보증금이 높은 구축 아파트에서 사기가 다수 보고된 점도 주의해야 합니다.</p>
+
+                <h5>✅ 세입자가 해야 할 일 3가지</h5>
+                <ul>
+                    <li>등기부등본 확인 → 근저당, 가압류 여부 체크</li>
+                    <li>전입 + 확정일자 → 계약 직후 반드시 처리</li>
+                    <li>보증보험 가입 → HUG, SGI 가입 가능 여부 확인</li>
+                </ul>
+
+                <h5>📄 필요한 서류 & 확인 포인트</h5>
+                <ul>
+                    <li>등기부등본: 근저당, 가압류, 소유권 변동 기록 확인</li>
+                    <li>건축물대장: 실제 용도와 일치하는지 확인</li>
+                    <li>전입신고 & 확정일자: 동사무소 / 정부24 처리 가능</li>
+                    <li>보증보험: 신청 마감 시간(대개 오후 4시 이전) 전 처리</li>
+                </ul>
+
+                <p><b>정리</b>하자면, 이 매물은 조건은 나쁘지 않지만 
+                <b>구축 + 주의등급 + 보증금 규모</b>라는 점에서 꼭 조심하셔야 합니다.<br>
+                특히 오늘 말씀드린 3가지 절차만 지켜도 피해 위험을 크게 줄일 수 있으니, 
+                꼭 확인하시고 진행하시길 권장드립니다.</p>
+            </div>
+            """
+            st.markdown(gpt_text, unsafe_allow_html=True)
+
         else:
             st.info("지도를 클릭하면 매물 정보가 표시됩니다.")
     else:
         st.info("지도를 클릭하면 매물 정보가 표시됩니다.")
-
-# ----------------
-# GPT 분석 (전체 너비)
-# ----------------
-if row is not None:
-    prompt = f"""
-    당신은 전세사기 컨설턴트입니다.
-    아래 매물 정보를 바탕으로 위험 요인을 설명하고, 주의사항과 조언을 제시하세요.
-
-    단지명: {row['단지명']}
-    위험등급: {row['위험등급']}
-    위험점수: {위험점수}점
-    전세가율: {row['전세가율']}%
-    건축년도: {row['건축년도']}
-    주택유형: {row['주택유형']}
-    임대구분: {row['임대구분']}
-    계약유형: {row['계약유형']}
-    보증금: {row['보증금.만원.']} 만원
-    거래금액: {row['거래금액.만원.']} 만원
-    """
-
-    try:
-        client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-        response = client.chat.completions.create(
-            model="gpt-4.0",   # ✅ GPT-4.0으로 변경
-            messages=[
-                {"role": "system", "content": "너는 전세사기 분석 및 컨설팅 전문가야."},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=300
-        )
-        gpt_reply = response.choices[0].message.content.strip()
-    except Exception as e:
-        gpt_reply = f"❌ GPT 호출 실패: {e}"
-
-    st.markdown(f"""
-    <div style="border:1px solid #ddd; border-radius:12px; padding:20px;
-                background:#fdf6e3; line-height:1.6; width:100%; margin-top:20px;">
-        <h4>🤖 전세사기 컨설턴트 조언</h4>
-        <p>{gpt_reply}</p>
-    </div>
-    """, unsafe_allow_html=True)
