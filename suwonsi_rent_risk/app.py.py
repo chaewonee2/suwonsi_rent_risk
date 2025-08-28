@@ -5,14 +5,14 @@ from folium.plugins import MarkerCluster
 from streamlit_folium import st_folium
 
 st.set_page_config(layout="wide")
-st.title("🏠 수원시 전세 매물 지도 (클릭 상세보기)")
+st.title("🏠 수원시 전세 매물 위험 탐지")
 
 # ----------------
 # 데이터 불러오기
 # ----------------
 @st.cache_data
 def load_data():
-    df = pd.read_csv("dataset_19_ex.csv")  # ⚠️ 여기서 파일명 맞춰주세요 (dataset_test1.csv면 그걸로 변경)
+    df = pd.read_csv("dataset_19_ex.csv")  # ⚠️ 실행 환경에 맞게 파일명 변경 가능
 
     # 시군구 → 시, 구 분리
     if "구" not in df.columns or "시" not in df.columns:
@@ -32,7 +32,9 @@ df = load_data()
 # ----------------
 col_left, col_mid, col_right = st.columns([0.8, 2.8, 0.8], gap="small")
 
+# ----------------
 # 지역정보 (왼쪽)
+# ----------------
 with col_left:
     st.subheader("🌍 지역정보")
     selected_gu = st.radio(
@@ -48,7 +50,9 @@ with col_left:
     </div>
     """, unsafe_allow_html=True)
 
+# ----------------
 # 지도 (가운데)
+# ----------------
 with col_mid:
     m = folium.Map(location=[37.2636, 127.0286], zoom_start=12, tiles="CartoDB positron")
     marker_cluster = MarkerCluster().add_to(m)
@@ -62,15 +66,15 @@ with col_mid:
 
         # 위험등급 색상 매핑
         if row["위험등급"] == "안전":
-            bg_color = "#d4f7d4"  # 연한 초록
+            bg_color = "#d4f7d4"
         elif row["위험등급"] == "보통":
-            bg_color = "#fff3b0"  # 연한 노랑
+            bg_color = "#fff3b0"
         elif row["위험등급"] == "위험":
-            bg_color = "#ffcc99"  # 연한 주황
+            bg_color = "#ffcc99"
         else:
             bg_color = "#f0f0f0"
 
-        # ✅ 툴팁 (hover)
+        # 툴팁 (hover)
         tooltip_html = f"""
         <div style="font-size:13px; line-height:1.6; 
                     border:1px solid #ccc; border-radius:8px; 
@@ -82,7 +86,7 @@ with col_mid:
         </div>
         """
 
-        # ✅ 팝업 (click → 단지명 / 주택유형만)
+        # 팝업 (click)
         popup_html = f"""
         <div style="font-size:14px; line-height:1.8; 
                     border:1px solid #444; border-radius:10px; 
@@ -96,3 +100,63 @@ with col_mid:
         folium.Marker(
             location=[row["위도"], row["경도"]],
             tooltip=folium.Tooltip(tooltip_html, sticky=True),
+            popup=folium.Popup(popup_html, max_width=300)
+        ).add_to(marker_cluster)   # ✅ 괄호 닫힘 주의!
+
+    st_data = st_folium(m, width=900, height=650)
+
+# ----------------
+# 매물정보 (오른쪽)
+# ----------------
+with col_right:
+    st.subheader("📋 매물 상세정보")
+
+    if st_data and st_data.get("last_object_clicked_popup"):
+        clicked_popup = st_data["last_object_clicked_popup"]
+
+        # popup_html 안에서 unique_key 추출
+        clicked_key = None
+        for key in df["unique_key"]:
+            if key in clicked_popup:
+                clicked_key = key
+                break
+
+        if clicked_key:
+            row_match = df[df["unique_key"] == clicked_key]
+        else:
+            row_match = pd.DataFrame()
+
+        if not row_match.empty:
+            row = row_match.iloc[0]
+            위험점수 = round(row["위험확률"], 1)  # ✅ 수정됨
+
+            # 위험등급 색상 매핑 (상세정보 카드 배경)
+            if row["위험등급"] == "안전":
+                card_color = "#d4f7d4"
+            elif row["위험등급"] == "보통":
+                card_color = "#fff3b0"
+            elif row["위험등급"] == "위험":
+                card_color = "#ffcc99"
+            else:
+                card_color = "#ffffff"
+
+            st.markdown(f"""
+            <div style="border:1px solid #ddd; border-radius:12px; padding:20px;
+                        background:{card_color}; line-height:1.6; min-height:600px;">
+                <h4>🏢 {row['단지명']}</h4>
+                <h5>🚦 위험등급: {row['위험등급']}</h5>
+                <h5>⚠️ 위험점수: {위험점수}점</h5>
+                📍 위치: {row['시']} {row['구']}<br>
+                🏗 건축년도: {row['건축년도']}<br>
+                🏠 주택유형: {row['주택유형']}<br>
+                📊 전세가율: {row['전세가율']}%<br>
+                📑 계약유형: {row['계약유형']}<br>
+                💰 거래금액: {row['거래금액.만원.']} 만원<br>
+                💵 보증금: {row['보증금.만원.']} 만원<br>
+                🛗 층: {row['층']}층<br>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.info("지도를 클릭하면 매물 정보가 표시됩니다.")
+    else:
+        st.info("지도를 클릭하면 매물 정보가 표시됩니다.")
