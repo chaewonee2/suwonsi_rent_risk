@@ -12,12 +12,14 @@ st.title("🏠 수원시 전세 매물 지도 (클릭 상세보기)")
 # ----------------
 @st.cache_data
 def load_data():
-    df = pd.read_csv("dataset_19_ex.csv")
+    df = pd.read_csv("dataset_19_ex.csv")  # ⚠️ 여기서 파일명 맞춰주세요 (dataset_test1.csv면 그걸로 변경)
 
+    # 시군구 → 시, 구 분리
     if "구" not in df.columns or "시" not in df.columns:
         if "시군구" in df.columns:
             df[["시", "구"]] = df["시군구"].str.split(" ", n=1, expand=True)
 
+    # 전세가율 숫자 변환
     if "전세가율" in df.columns:
         df["전세가율"] = pd.to_numeric(df["전세가율"], errors="coerce").round(0)
 
@@ -55,13 +57,13 @@ with col_mid:
         unique_key = f"{row['단지명']}_{row['층']}"
         df.at[i, "unique_key"] = unique_key
 
-        # 위험점수 계산
-        위험점수 = round(row["위험확률"] , 1)
+        # ✅ 위험점수 (위험확률이 이미 % 값이므로 그대로 사용)
+        위험점수 = round(row["위험확률"], 1)
 
         # 위험등급 색상 매핑
         if row["위험등급"] == "안전":
             bg_color = "#d4f7d4"  # 연한 초록
-        elif row["위험등급"] == "주의":
+        elif row["위험등급"] == "보통":
             bg_color = "#fff3b0"  # 연한 노랑
         elif row["위험등급"] == "위험":
             bg_color = "#ffcc99"  # 연한 주황
@@ -75,7 +77,8 @@ with col_mid:
                     background-color:{bg_color}; padding:6px 10px;">
             <b>단지명:</b> {row['단지명']}<br>
             <b>주택유형:</b> {row['주택유형']}<br>
-            <b>위험등급:</b> {row['위험등급']}
+            <b>위험등급:</b> {row['위험등급']}<br>
+            <b>위험점수:</b> {위험점수}점
         </div>
         """
 
@@ -93,67 +96,3 @@ with col_mid:
         folium.Marker(
             location=[row["위도"], row["경도"]],
             tooltip=folium.Tooltip(tooltip_html, sticky=True),
-            popup=folium.Popup(popup_html, max_width=300)
-        ).add_to(marker_cluster)
-
-    st_data = st_folium(m, width=900, height=650)
-
-# 매물정보 (오른쪽)
-with col_right:
-    st.subheader("📋 매물 상세정보")
-
-    if st_data and st_data.get("last_object_clicked_popup"):
-        clicked_popup = st_data["last_object_clicked_popup"]
-
-        # popup_html 안에서 unique_key 추출
-        clicked_key = None
-        for key in df["unique_key"]:
-            if key in clicked_popup:
-                clicked_key = key
-                break
-
-        if clicked_key:
-            row_match = df[df["unique_key"] == clicked_key]
-        else:
-            row_match = pd.DataFrame()
-
-        if not row_match.empty:
-            row = row_match.iloc[0]
-            위험점수 = round(row["최종_위험_지표"] * 100, 1)
-
-            # 위험등급 색상 매핑 (상세정보 카드 배경)
-            if row["위험등급"] == "안전":
-                card_color = "#d4f7d4"
-            elif row["위험등급"] == "주의":
-                card_color = "#fff3b0"
-            elif row["위험등급"] == "위험":
-                card_color = "#ffcc99"
-            else:
-                card_color = "#ffffff"
-
-            st.markdown(f"""
-            <div style="border:1px solid #ddd; border-radius:12px; padding:20px;
-                        background:{card_color}; line-height:1.6; min-height:600px;">
-                <h4>🏢 {row['단지명']}</h4>
-                <h5>🚦 위험등급: {row['위험등급']}</h5>
-                <h5>⚠️ 위험점수: {위험점수}점<br><h5>
-                📍 위치: {row['시']} {row['구']}<br>
-                🏗 건축년도: {row['건축년도']}<br>
-                🏠 주택유형: {row['주택유형']}<br>
-                📊 전세가율: {row['전세가율']}%<br>
-                📑 계약유형: {row['계약유형']}<br>
-                💰 거래금액: {row['거래금액.만원.']} 만원<br>
-                💵 보증금: {row['보증금.만원.']} 만원<br>
-                🛗 층: {row['층']}층<br>
-                
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.info("지도를 클릭하면 매물 정보가 표시됩니다.")
-    else:
-        st.info("지도를 클릭하면 매물 정보가 표시됩니다.")
-
-
-
-
-
